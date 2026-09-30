@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "reselogg",
+  "project_id": "04479db2-edf7-4af7-a5d5-338813f274bf"
+}
