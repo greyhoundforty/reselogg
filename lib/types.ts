@@ -19,6 +19,7 @@ export type Hike = {
   lng: number;
   locationLabel: string;
   seeded: boolean;
+  headerImageUrl?: string;
 };
 
 export const PLACE_TYPE_LABELS: Record<PlaceType, string> = {

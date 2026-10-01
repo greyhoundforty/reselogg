@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { useHikes } from "@/components/hikes-provider";
@@ -26,11 +26,38 @@ export function HikeDetail({ hikeId }: { hikeId: string }) {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [saved, setSaved] = useState(false);
+  const [headerUrl, setHeaderUrl] = useState<string | null>(null);
+  const [headerUploading, setHeaderUploading] = useState(false);
+  const headerInputRef = useRef<HTMLInputElement>(null);
 
+  // Sync local state when the hike changes
   if (hike && hike.id !== draftId) {
     setDraftId(hike.id);
     setNotes(hike.notes);
     setSaved(false);
+    setHeaderUrl(hike.headerImageUrl ?? null);
+  }
+
+  async function uploadHeader(file: File) {
+    setHeaderUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch(`/api/hikes/${hike!.id}/header`, { method: "POST", body });
+      if (!res.ok) throw new Error("Upload failed.");
+      const data = (await res.json()) as { url: string };
+      setHeaderUrl(data.url);
+      // Keep local hike record in sync so stats / list re-render correctly
+      updateHike(hike!.id, { headerImageUrl: data.url });
+    } finally {
+      setHeaderUploading(false);
+    }
+  }
+
+  async function removeHeader() {
+    await fetch(`/api/hikes/${hike!.id}/header`, { method: "DELETE" });
+    setHeaderUrl(null);
+    updateHike(hike!.id, { headerImageUrl: undefined });
   }
 
   if (status === "loading") {
@@ -56,7 +83,7 @@ export function HikeDetail({ hikeId }: { hikeId: string }) {
   if (!hike) {
     return (
       <main className="mx-auto grid w-full max-w-4xl flex-1 gap-3 px-4 py-8">
-        <p className="font-medium">That visit is not in this browser’s log</p>
+        <p className="font-medium">That visit is not in this browser&apos;s log</p>
         <p className="text-sm text-muted-foreground">
           It may have been removed, or you are on a device that never saved it.
         </p>
@@ -67,11 +94,20 @@ export function HikeDetail({ hikeId }: { hikeId: string }) {
     );
   }
 
+  const activeHeader = headerUrl ?? hike.headerImageUrl;
+
   return (
-    <main className="mx-auto grid w-full max-w-5xl flex-1 gap-6 px-4 py-6">
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+      {/* ── Header row ─────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Button variant="ghost" size="sm" className="-ml-2" nativeButton={false} render={<Link href="/" />}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            nativeButton={false}
+            render={<Link href="/" />}
+          >
             ← All visits
           </Button>
           <h1 className="font-heading mt-2 text-2xl font-medium">{hike.name}</h1>
@@ -82,7 +118,65 @@ export function HikeDetail({ hikeId }: { hikeId: string }) {
         </div>
         <Badge variant="secondary">{PLACE_TYPE_LABELS[hike.placeType]}</Badge>
       </div>
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+
+      {/* ── Header image ───────────────────────────────────────────── */}
+      {activeHeader ? (
+        <div className="relative mt-4 overflow-hidden rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={activeHeader}
+            alt={`Header image for ${hike.name}`}
+            className="h-56 w-full object-cover sm:h-72"
+          />
+          {authState === "authenticated" ? (
+            <div className="absolute right-3 top-3 flex gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="bg-background/80 backdrop-blur-sm"
+                onClick={() => headerInputRef.current?.click()}
+                disabled={headerUploading}
+              >
+                {headerUploading ? "Uploading…" : "Change"}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="bg-background/80 backdrop-blur-sm"
+                onClick={removeHeader}
+              >
+                Remove
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : authState === "authenticated" ? (
+        <div
+          className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-foreground/15 py-8 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+          onClick={() => headerInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && headerInputRef.current?.click()}
+        >
+          {headerUploading ? "Uploading…" : "Add a header image"}
+        </div>
+      ) : null}
+
+      {/* Hidden file input for header image */}
+      <input
+        ref={headerInputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void uploadHeader(file);
+          e.target.value = "";
+        }}
+      />
+
+      {/* ── Notes + Map (side by side) ─────────────────────────────── */}
+      <div className="mt-5 grid items-start gap-5 lg:grid-cols-[1fr_1fr]">
         <div className="grid gap-5">
           <section className="grid gap-2">
             <Label htmlFor="notes">Notes</Label>
@@ -94,7 +188,7 @@ export function HikeDetail({ hikeId }: { hikeId: string }) {
                 setNotes(event.target.value);
                 setSaved(false);
               }}
-              className="min-h-40"
+              className="min-h-52"
             />
             {authState === "authenticated" ? (
               <div className="flex flex-wrap gap-2">
@@ -129,12 +223,16 @@ export function HikeDetail({ hikeId }: { hikeId: string }) {
             </div>
           ) : null}
         </div>
-        <div className="min-h-[280px]">
-          <VisitMaps
-            hikes={hikes}
-            selectedId={hike.id}
-            showDetailLink={false}
-          />
+
+        {/* Map — stretches to match the left column height */}
+        <div className="lg:sticky lg:top-4">
+          <div className="h-[320px] lg:h-[420px]">
+            <VisitMaps
+              hikes={hikes}
+              selectedId={hike.id}
+              showDetailLink={false}
+            />
+          </div>
         </div>
       </div>
     </main>
