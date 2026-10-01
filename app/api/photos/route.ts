@@ -10,22 +10,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "hikeId query param is required." }, { status: 400 });
   }
 
-  const { blobs } = await list({ prefix: `photos/${hikeId}/` });
+  // If the Blob store isn't connected yet return an empty list rather than 500.
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json({ photos: [] });
+  }
 
-  const photos = blobs.map((blob) => {
-    // pathname: photos/{hikeId}/{photoId}/{filename}
-    const parts = blob.pathname.split("/");
-    return {
-      id: parts[2] ?? blob.pathname,
-      hikeId,
-      name: parts[3] ?? blob.pathname,
-      url: blob.url,
-      createdAt: blob.uploadedAt.toISOString(),
-    };
-  });
+  try {
+    const { blobs } = await list({ prefix: `photos/${hikeId}/` });
 
-  // newest first
-  photos.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const photos = blobs.map((blob) => {
+      // pathname: photos/{hikeId}/{photoId}/{filename}
+      const parts = blob.pathname.split("/");
+      return {
+        id: parts[2] ?? blob.pathname,
+        hikeId,
+        name: parts[3] ?? blob.pathname,
+        url: blob.url,
+        createdAt: blob.uploadedAt.toISOString(),
+      };
+    });
 
-  return NextResponse.json({ photos });
+    // newest first
+    photos.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    return NextResponse.json({ photos });
+  } catch (err) {
+    console.error("Blob list error:", err);
+    return NextResponse.json(
+      { error: "Could not load photos. The Blob store may not be connected." },
+      { status: 503 },
+    );
+  }
 }

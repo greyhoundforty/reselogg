@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { AddHikeDialog } from "@/components/add-hike-dialog";
 import { LoginDialog } from "@/components/login-dialog";
@@ -17,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 function formatDate(iso: string) {
   const [year, month, day] = iso.split("-").map(Number);
@@ -37,6 +38,18 @@ export function HikeList({
   const { hikes, status, error, restoreSeeds, retry } = useHikes();
   const { state: authState } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return hikes;
+    return hikes.filter(
+      (h) =>
+        h.name.toLowerCase().includes(q) ||
+        h.locationLabel.toLowerCase().includes(q) ||
+        h.notes.toLowerCase().includes(q),
+    );
+  }, [hikes, query]);
 
   return (
     <Card className="h-full overflow-hidden">
@@ -65,6 +78,23 @@ export function HikeList({
             <LoginDialog onClose={() => setShowLogin(false)} />
           ) : null}
         </div>
+        {status === "ready" && hikes.length > 0 ? (
+          <div className="relative mt-1">
+            <Input
+              type="search"
+              placeholder="Search name, location, or notes…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="h-8 pr-8 text-sm"
+              aria-label="Search hikes"
+            />
+            {query ? (
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                {filtered.length}/{hikes.length}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="max-h-[min(70vh,720px)] overflow-y-auto pt-4">
         {status === "loading" ? <LoadingState /> : null}
@@ -75,17 +105,23 @@ export function HikeList({
           <EmptyState onRestore={restoreSeeds} onLoginRequest={() => setShowLogin(true)} />
         ) : null}
         {status === "ready" && hikes.length > 0 ? (
-          <ul className="grid gap-2">
-            {hikes.map((hike) => (
-              <li key={hike.id}>
-                <HikeRow
-                  hike={hike}
-                  selected={hike.id === selectedId}
-                  onSelect={onSelect}
-                />
-              </li>
-            ))}
-          </ul>
+          filtered.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No visits match &ldquo;{query}&rdquo;.
+            </p>
+          ) : (
+            <ul className="grid gap-2">
+              {filtered.map((hike) => (
+                <li key={hike.id}>
+                  <HikeRow
+                    hike={hike}
+                    selected={hike.id === selectedId}
+                    onSelect={onSelect}
+                  />
+                </li>
+              ))}
+            </ul>
+          )
         ) : null}
       </CardContent>
     </Card>

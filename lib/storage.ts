@@ -77,7 +77,7 @@ export function retryHikesLoad(): void {
   notify();
 }
 
-function validateHike(value: unknown): Hike {
+export function validateHike(value: unknown): Hike {
   if (!value || typeof value !== "object") {
     throw new Error("A saved hike is not an object.");
   }

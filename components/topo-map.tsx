@@ -190,19 +190,28 @@ export function TopoMap({ hikes, selectedId, onSelect, showDetailLink = true }: 
         event.stopPropagation();
         onSelect?.(hike.id);
       });
+      const notePreview = hike.notes.length > 80
+        ? hike.notes.slice(0, 80).trimEnd() + "…"
+        : hike.notes;
+      const detailLink = showDetailLink
+        ? `<a href="/hikes/${hike.id}" class="mt-popup-link">View details</a>`
+        : "";
+      const popup = new Popup({ offset: 18, closeButton: true, maxWidth: "260px" }).setHTML(
+        `<div class="mt-popup">
+          <p class="mt-popup-type">${escapeHtml(PLACE_TYPE_LABELS[hike.placeType])} · ${escapeHtml(hike.date)}</p>
+          <strong class="mt-popup-name">${escapeHtml(hike.name)}</strong>
+          <p class="mt-popup-loc">${escapeHtml(hike.locationLabel)}</p>
+          ${notePreview ? `<p class="mt-popup-notes">${escapeHtml(notePreview)}</p>` : ""}
+          ${detailLink}
+        </div>`,
+      );
       const marker = new Marker({ element: el, anchor: "bottom" })
         .setLngLat([hike.lng, hike.lat])
-        .setPopup(
-          new Popup({ offset: 16, closeButton: false }).setHTML(
-            `<div class="mt-popup"><strong>${escapeHtml(hike.name)}</strong><p>${escapeHtml(
-              hike.locationLabel,
-            )}</p><a href="/hikes/${hike.id}">Open notes</a></div>`,
-          ),
-        )
+        .setPopup(popup)
         .addTo(map);
       return marker;
     });
-  }, [hikes, onSelect, selectedId]);
+  }, [hikes, onSelect, selectedId, showDetailLink]);
 
   useEffect(() => {
     const map = mapRef.current;

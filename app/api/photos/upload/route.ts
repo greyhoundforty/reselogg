@@ -7,6 +7,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json(
+      { error: "Photo storage is not configured. Add BLOB_READ_WRITE_TOKEN in your Vercel project settings." },
+      { status: 503 },
+    );
+  }
+
   const formData = await req.formData();
   const hikeId = formData.get("hikeId");
   const file = formData.get("file");

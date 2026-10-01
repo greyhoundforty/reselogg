@@ -167,3 +167,40 @@
   border-radius: 10px;
   padding: 10px 12px;
 }
+
+.mt-popup-type {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #78716c;
+  margin: 0 0 3px;
+}
+
+.mt-popup-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.mt-popup-loc {
+  font-size: 12px;
+  color: #78716c;
+  margin: 0 0 5px;
+}
+
+.mt-popup-notes {
+  font-size: 12px;
+  color: #44403c;
+  margin: 0 0 7px;
+  line-height: 1.45;
+}
+
+.mt-popup-link {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #276749;
+  text-decoration: underline;
+  margin-top: 2px;
+}
